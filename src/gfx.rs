@@ -1,12 +1,12 @@
 use windows::Win32::Foundation::{COLORREF, HWND, POINT, RECT, SIZE};
 use windows::Win32::Graphics::Gdi::{
-    AC_SRC_ALPHA, AC_SRC_OVER, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION,
-    CreateCompatibleDC, CreateDIBSection, CreatePen, CreateSolidBrush, DIB_RGB_COLORS,
-    DRAW_TEXT_FORMAT, DT_NOPREFIX, DeleteDC, DeleteObject, DrawTextW, FillRect, GetDC,
-    GetStockObject, GetTextExtentPoint32W, HALFTONE, HBITMAP, HDC, HFONT, HGDIOBJ,
+    AC_SRC_ALPHA, AC_SRC_OVER, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, BitBlt,
+    CreateCompatibleBitmap, CreateCompatibleDC, CreateDIBSection, CreatePen, CreateSolidBrush,
+    DIB_RGB_COLORS, DRAW_TEXT_FORMAT, DT_NOPREFIX, DeleteDC, DeleteObject, DrawTextW, FillRect,
+    GetDC, GetStockObject, GetTextExtentPoint32W, HALFTONE, HBITMAP, HDC, HFONT, HGDIOBJ,
     IntersectClipRect, NULL_BRUSH, NULL_PEN, PS_ENDCAP_ROUND, PS_GEOMETRIC, PS_JOIN_ROUND,
     PS_SOLID, Polygon, Polyline, ReleaseDC, RestoreDC, RoundRect, SRCCOPY, SaveDC, SelectObject,
-    SetBkMode, SetStretchBltMode, SetTextColor, StretchDIBits, TRANSPARENT,
+    SetBkMode, SetStretchBltMode, SetTextColor, StretchBlt, StretchDIBits, TRANSPARENT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DI_NORMAL, DrawIconEx, HICON, ULW_ALPHA, UpdateLayeredWindow,
@@ -141,6 +141,59 @@ impl Canvas {
             };
             FillRect(self.dc, &rect, brush);
             let _ = DeleteObject(HGDIOBJ(brush.0));
+        }
+    }
+
+    /// Mirrors a horizontal band of the canvas directly below itself.
+    ///
+    /// Chevrons are drawn once in the upper half and flipped down pixel-for-pixel,
+    /// so GDI's line rasterizer cannot make the two halves differ.
+    pub fn mirror_below(&self, source: RECT, dest_top: i32) {
+        let width = source.right - source.left;
+        let height = source.bottom - source.top;
+        if width <= 0 || height <= 0 {
+            return;
+        }
+        unsafe {
+            let mem = CreateCompatibleDC(Some(self.dc));
+            let bitmap = CreateCompatibleBitmap(self.dc, width, height);
+            if mem.is_invalid() || bitmap.is_invalid() {
+                if !bitmap.is_invalid() {
+                    let _ = DeleteObject(HGDIOBJ(bitmap.0));
+                }
+                if !mem.is_invalid() {
+                    let _ = DeleteDC(mem);
+                }
+                return;
+            }
+            let old = SelectObject(mem, HGDIOBJ(bitmap.0));
+            let _ = BitBlt(
+                mem,
+                0,
+                0,
+                width,
+                height,
+                Some(self.dc),
+                source.left,
+                source.top,
+                SRCCOPY,
+            );
+            let _ = StretchBlt(
+                self.dc,
+                source.left,
+                dest_top,
+                width,
+                height,
+                Some(mem),
+                0,
+                height,
+                width,
+                -height,
+                SRCCOPY,
+            );
+            SelectObject(mem, old);
+            let _ = DeleteObject(HGDIOBJ(bitmap.0));
+            let _ = DeleteDC(mem);
         }
     }
 

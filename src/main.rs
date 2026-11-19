@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod autostart;
 mod config;
 mod gfx;
 mod icons;
@@ -66,6 +67,7 @@ const ID_TOGGLE: usize = 2001;
 const ID_AUTO: usize = 2002;
 const ID_CLEAR_PIN: usize = 2003;
 const ID_EXIT: usize = 2004;
+const ID_AUTOSTART: usize = 2005;
 
 struct App {
     host: HWND,
@@ -166,6 +168,8 @@ fn main() {
     let cmd = smtc::start(host, shared.clone());
 
     let dpi = unsafe { GetDpiForSystem() }.max(96);
+    let settings = Settings::load();
+    autostart::apply(settings.autostart);
     let state = App {
         host,
         strip: None,
@@ -174,7 +178,7 @@ fn main() {
         snapshot: Snapshot::default(),
         shared,
         cmd,
-        settings: Settings::load(),
+        settings,
         display: None,
         dpi,
         fonts: Some(ui::Fonts::new(dpi)),
@@ -817,7 +821,7 @@ fn append(menu: HMENU, flags: MENU_ITEM_FLAGS, id: usize, text: &str) {
 }
 
 /// Modal menu. Must be called without holding the app lock: it pumps messages.
-fn show_menu(host: HWND, enabled: bool, pinned: bool) -> usize {
+fn show_menu(host: HWND, enabled: bool, pinned: bool, autostart_enabled: bool) -> usize {
     unsafe {
         let Ok(menu) = CreatePopupMenu() else {
             return 0;
@@ -837,6 +841,13 @@ fn show_menu(host: HWND, enabled: bool, pinned: bool) -> usize {
         if pinned {
             append(menu, MF_STRING, ID_CLEAR_PIN, "Unpin source");
         }
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
+        let autostart_flags = if autostart_enabled {
+            MF_STRING | MF_CHECKED
+        } else {
+            MF_STRING
+        };
+        append(menu, autostart_flags, ID_AUTOSTART, "Start with Windows");
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
         append(menu, MF_STRING, ID_EXIT, "Exit");
 
@@ -858,12 +869,13 @@ fn show_menu(host: HWND, enabled: bool, pinned: bool) -> usize {
     }
 }
 
-fn take_menu_snapshot() -> (HWND, bool, bool) {
+fn take_menu_snapshot() -> (HWND, bool, bool, bool) {
     let state = app();
     (
         state.host,
         state.settings.enabled,
         state.settings.pinned.is_some(),
+        state.settings.autostart,
     )
 }
 
@@ -886,6 +898,11 @@ fn handle_menu(state: &mut App, command: usize) {
             ensure_strip(state);
             invalidate(state.strip);
             invalidate(state.popup);
+        }
+        ID_AUTOSTART => {
+            state.settings.autostart = !state.settings.autostart;
+            state.settings.save();
+            autostart::apply(state.settings.autostart);
         }
         ID_EXIT => unsafe {
             // DestroyWindow sends WM_DESTROY synchronously; defer it so we do
@@ -963,8 +980,8 @@ unsafe extern "system" fn host_proc(
             let notification = (lparam.0 as u32) & 0xFFFF;
             match notification {
                 WM_RBUTTONUP | WM_CONTEXTMENU => {
-                    let (host, enabled, pinned) = take_menu_snapshot();
-                    let command = show_menu(host, enabled, pinned);
+                    let (host, enabled, pinned, autostart_enabled) = take_menu_snapshot();
+                    let command = show_menu(host, enabled, pinned, autostart_enabled);
                     handle_menu(&mut app(), command);
                 }
                 WM_LBUTTONUP => {
@@ -1112,8 +1129,8 @@ unsafe extern "system" fn strip_proc(
             LRESULT(0)
         }
         WM_RBUTTONUP => {
-            let (host, enabled, pinned) = take_menu_snapshot();
-            let command = show_menu(host, enabled, pinned);
+            let (host, enabled, pinned, autostart_enabled) = take_menu_snapshot();
+            let command = show_menu(host, enabled, pinned, autostart_enabled);
             handle_menu(&mut app(), command);
             LRESULT(0)
         }
@@ -1179,8 +1196,8 @@ unsafe extern "system" fn popup_proc(
             LRESULT(0)
         }
         WM_RBUTTONUP => {
-            let (host, enabled, pinned) = take_menu_snapshot();
-            let command = show_menu(host, enabled, pinned);
+            let (host, enabled, pinned, autostart_enabled) = take_menu_snapshot();
+            let command = show_menu(host, enabled, pinned, autostart_enabled);
             handle_menu(&mut app(), command);
             LRESULT(0)
         }

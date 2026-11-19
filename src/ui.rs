@@ -385,13 +385,28 @@ fn draw_media_glyph(canvas: &Canvas, dpi: u32, rect: RECT, glyph: MediaGlyph, co
             canvas.round_rect(bar(1.2, 3.2, 5.0), (1.0 * scale) as i32, Some(color), None);
         }
         MediaGlyph::Prev => {
-            // The taskbar's show-hidden-icons chevron, rotated left.
-            let points = [point(2.0, -4.5), point(-2.0, 0.0), point(2.0, 4.5)];
+            // Draw only the upper half, then mirror it down pixel-for-pixel so
+            // the two arms of the chevron are exactly symmetrical.
+            let points = [point(2.0, -4.0), point(-2.0, 0.0)];
             canvas.stroke_polyline(&points, color, stroke);
+            let source = RECT {
+                left: (cx - 5.0 * scale).round() as i32,
+                top: (cy - 6.0 * scale).round() as i32,
+                right: (cx + 5.0 * scale).round() as i32,
+                bottom: cy.round() as i32,
+            };
+            canvas.mirror_below(source, source.bottom + 1);
         }
         MediaGlyph::Next => {
-            let points = [point(-2.0, -4.5), point(2.0, 0.0), point(-2.0, 4.5)];
+            let points = [point(-2.0, -4.0), point(2.0, 0.0)];
             canvas.stroke_polyline(&points, color, stroke);
+            let source = RECT {
+                left: (cx - 5.0 * scale).round() as i32,
+                top: (cy - 6.0 * scale).round() as i32,
+                right: (cx + 5.0 * scale).round() as i32,
+                bottom: cy.round() as i32,
+            };
+            canvas.mirror_below(source, source.bottom + 1);
         }
     }
 }

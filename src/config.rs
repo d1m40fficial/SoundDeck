@@ -8,6 +8,8 @@ pub struct Settings {
     pub pinned: Option<String>,
     /// Whether the strip is shown on the taskbar.
     pub enabled: bool,
+    /// Whether SoundDeck is registered to start with Windows.
+    pub autostart: bool,
 }
 
 impl Default for Settings {
@@ -15,6 +17,7 @@ impl Default for Settings {
         Self {
             pinned: None,
             enabled: DEFAULT_ENABLED,
+            autostart: true,
         }
     }
 }
@@ -44,6 +47,7 @@ impl Settings {
                     settings.pinned = (!value.is_empty()).then(|| value.to_string());
                 }
                 "enabled" => settings.enabled = value.trim() != "0",
+                "autostart" => settings.autostart = value.trim() != "0",
                 _ => {}
             }
         }
@@ -63,6 +67,10 @@ impl Settings {
             }
         }
         text.push_str(&format!("enabled={}\n", if self.enabled { 1 } else { 0 }));
+        text.push_str(&format!(
+            "autostart={}\n",
+            if self.autostart { 1 } else { 0 }
+        ));
         let _ = fs::write(path, text);
     }
 }

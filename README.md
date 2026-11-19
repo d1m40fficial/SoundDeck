@@ -19,7 +19,8 @@ written in Rust — no runtime, no installer, no background service.
 - **Blends into the taskbar**: the strip samples the actual taskbar color
   (custom colors, transparency, accent) and has no border or rounded corners.
 - **Theme and DPI aware**, hides itself when nothing is playing.
-- **Tray menu**: show/hide the strip, auto-select, unpin, exit.
+- **Tray menu**: show/hide the strip, auto-select, unpin, start with Windows, exit.
+  Autostart is **on by default** and can be toggled from the menu.
 
 ![Taskbar controls](docs/taskbar.png)
 
@@ -36,7 +37,9 @@ cargo build --release
 ```
 
 The executable is self-contained. Settings are stored in
-`%LOCALAPPDATA%\SoundDeck\settings.txt`.
+`%LOCALAPPDATA%\SoundDeck\settings.txt`. On first launch SoundDeck adds itself to
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; use **Start with Windows**
+in the tray menu to turn that off.
 
 Diagnostics — list the sessions Windows exposes:
 
