@@ -372,8 +372,9 @@ fn draw_media_glyph(canvas: &Canvas, dpi: u32, rect: RECT, glyph: MediaGlyph, co
 
     match glyph {
         MediaGlyph::Play => {
-            let points = [point(-3.0, -5.0), point(-3.0, 5.0), point(4.0, 0.0)];
-            canvas.stroke_polygon(&points, color, stroke);
+            // Same vertical span as the chevrons, but filled.
+            let points = [point(-3.0, -4.0), point(-3.0, 4.0), point(4.0, 0.0)];
+            canvas.fill_polygon(&points, color);
         }
         MediaGlyph::Pause => {
             // Same visual height as the chevrons: RoundRect drops its bottom

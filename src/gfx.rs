@@ -198,6 +198,19 @@ impl Canvas {
         }
     }
 
+    /// Fills a closed polygon without an outline (the play triangle).
+    pub fn fill_polygon(&self, points: &[POINT], color: COLORREF) {
+        unsafe {
+            let brush = CreateSolidBrush(color);
+            let old_brush = SelectObject(self.dc, HGDIOBJ(brush.0));
+            let old_pen = SelectObject(self.dc, GetStockObject(NULL_PEN));
+            let _ = Polygon(self.dc, points);
+            SelectObject(self.dc, old_pen);
+            SelectObject(self.dc, old_brush);
+            let _ = DeleteObject(HGDIOBJ(brush.0));
+        }
+    }
+
     /// Draws an open polyline (used for the chevron-style prev/next buttons).
     pub fn stroke_polyline(&self, points: &[POINT], color: COLORREF, width: i32) {
         unsafe {
