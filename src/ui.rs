@@ -529,15 +529,18 @@ pub fn paint_popup(
 }
 
 fn draw_identity(theme: &Theme, fonts: &Fonts, track: &Track, rect: RECT, canvas: &Canvas) {
+    let radius = ((rect.bottom - rect.top) / 6).max(3);
     if let Some(art) = &track.art {
-        canvas.image(&art.bgra, art.width, art.height, rect);
+        canvas.image_rounded(&art.bgra, art.width, art.height, rect, radius);
+        canvas.round_rect(rect, radius, None, Some(theme.border));
         return;
     }
     if let Some(icon) = icons::app_icon(&track.app_id) {
-        canvas.icon(icon, rect);
+        canvas.icon_rounded(icon, rect, radius);
+        canvas.round_rect(rect, radius, None, Some(theme.border));
         return;
     }
-    canvas.round_rect(rect, 4, Some(theme.accent), None);
+    canvas.round_rect(rect, radius, Some(theme.accent), None);
     canvas.text(
         fonts.note,
         "\u{266B}",
@@ -545,6 +548,7 @@ fn draw_identity(theme: &Theme, fonts: &Fonts, track: &Track, rect: RECT, canvas
         rgb(255, 255, 255),
         DT_SINGLELINE | DT_VCENTER | DT_CENTER,
     );
+    canvas.round_rect(rect, radius, None, Some(theme.border));
 }
 
 fn inside(rect: RECT, x: i32, y: i32) -> bool {

@@ -1,12 +1,13 @@
 use windows::Win32::Foundation::{COLORREF, HWND, POINT, RECT, SIZE};
 use windows::Win32::Graphics::Gdi::{
     AC_SRC_ALPHA, AC_SRC_OVER, BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, BitBlt,
-    CreateCompatibleBitmap, CreateCompatibleDC, CreateDIBSection, CreatePen, CreateSolidBrush,
-    DIB_RGB_COLORS, DRAW_TEXT_FORMAT, DT_NOPREFIX, DeleteDC, DeleteObject, DrawTextW, FillRect,
-    GetDC, GetStockObject, GetTextExtentPoint32W, HALFTONE, HBITMAP, HDC, HFONT, HGDIOBJ,
-    IntersectClipRect, NULL_BRUSH, NULL_PEN, PS_ENDCAP_ROUND, PS_GEOMETRIC, PS_JOIN_ROUND,
-    PS_SOLID, Polygon, Polyline, ReleaseDC, RestoreDC, RoundRect, SRCCOPY, SaveDC, SelectObject,
-    SetBkMode, SetStretchBltMode, SetTextColor, StretchBlt, StretchDIBits, TRANSPARENT,
+    CreateCompatibleBitmap, CreateCompatibleDC, CreateDIBSection, CreatePen, CreateRoundRectRgn,
+    CreateSolidBrush, DIB_RGB_COLORS, DRAW_TEXT_FORMAT, DT_NOPREFIX, DeleteDC, DeleteObject,
+    DrawTextW, FillRect, GetDC, GetStockObject, GetTextExtentPoint32W, HALFTONE, HBITMAP, HDC,
+    HFONT, HGDIOBJ, IntersectClipRect, NULL_BRUSH, NULL_PEN, PS_ENDCAP_ROUND, PS_GEOMETRIC,
+    PS_JOIN_ROUND, PS_SOLID, Polygon, Polyline, ReleaseDC, RestoreDC, RoundRect, SRCCOPY, SaveDC,
+    SelectClipRgn, SelectObject, SetBkMode, SetStretchBltMode, SetTextColor, StretchBlt,
+    StretchDIBits, TRANSPARENT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     DI_NORMAL, DrawIconEx, HICON, ULW_ALPHA, UpdateLayeredWindow,
@@ -383,6 +384,36 @@ impl Canvas {
                 DI_NORMAL,
             );
         }
+    }
+
+    fn with_round_clip<F: FnOnce()>(&self, rect: RECT, radius: i32, draw: F) {
+        unsafe {
+            let saved = SaveDC(self.dc);
+            let region = CreateRoundRectRgn(
+                rect.left,
+                rect.top,
+                rect.right + 1,
+                rect.bottom + 1,
+                radius * 2,
+                radius * 2,
+            );
+            if !region.is_invalid() {
+                SelectClipRgn(self.dc, Some(region));
+            }
+            draw();
+            let _ = RestoreDC(self.dc, saved);
+            if !region.is_invalid() {
+                let _ = DeleteObject(HGDIOBJ(region.0));
+            }
+        }
+    }
+
+    pub fn image_rounded(&self, bgra: &[u8], width: u32, height: u32, dst: RECT, radius: i32) {
+        self.with_round_clip(dst, radius, || self.image(bgra, width, height, dst));
+    }
+
+    pub fn icon_rounded(&self, icon: HICON, rect: RECT, radius: i32) {
+        self.with_round_clip(rect, radius, || self.icon(icon, rect));
     }
 }
 
