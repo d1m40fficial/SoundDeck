@@ -376,13 +376,15 @@ fn draw_media_glyph(canvas: &Canvas, dpi: u32, rect: RECT, glyph: MediaGlyph, co
             canvas.stroke_polygon(&points, color, stroke);
         }
         MediaGlyph::Pause => {
-            canvas.round_rect(
-                bar(-3.2, -1.2, 5.0),
-                (1.0 * scale) as i32,
-                Some(color),
-                None,
-            );
-            canvas.round_rect(bar(1.2, 3.2, 5.0), (1.0 * scale) as i32, Some(color), None);
+            // Same visual height as the chevrons: RoundRect drops its bottom
+            // row, so extend the rectangle by one pixel.
+            let extend = scale.round() as i32;
+            let mut left = bar(-3.2, -1.2, 4.5);
+            let mut right = bar(1.2, 3.2, 4.5);
+            left.bottom += extend;
+            right.bottom += extend;
+            canvas.round_rect(left, (1.0 * scale) as i32, Some(color), None);
+            canvas.round_rect(right, (1.0 * scale) as i32, Some(color), None);
         }
         MediaGlyph::Prev => {
             // Draw only the upper half, then mirror it down pixel-for-pixel so
